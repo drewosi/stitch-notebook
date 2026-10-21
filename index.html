@@ -180,8 +180,8 @@ textarea{width:100%; min-height:120px; font:13px/1.4 ui-monospace,Menlo,Consolas
 // ===== Personalize here =====
 // Replace the message and, if you like, the motif. Chart rows run top to bottom; letters map to YARNS below.
 const SECRET = {
-  title: "A chart from Drew",
-  message: "I made this for you. Knit it into something warm.",
+  title: "For Morgan, from Drew",
+  message: "Morgan, I made this for you. Knit it into something warm.",
   yarns: { ".":"Oatmeal", "#":"Rust", "o":"Moss" },
   chart: [
     "................................",
@@ -351,7 +351,7 @@ function secretCells(){
 }
 let revealTimer=null;
 function unlockSecret(){
-  tb("tab-secret").disabled=false; tb("tab-secret").textContent="From Drew";
+  tb("tab-secret").disabled=false; tb("tab-secret").textContent="For Morgan";
   tb("secretLocked").hidden=true; tb("secretOpen").hidden=false;
 }
 function playReveal(){
