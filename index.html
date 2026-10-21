@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Stitch Notebook</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Andada+Pro:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: one column, a graph-paper notebook page; the chart grid is the hero, controls sit under it like a pencil tray. */
+:root{
+  --paper:#f3f4f0; --paper-line:#cfdce3; --ink:#2a2f3a; --ink-soft:#6b7280; --pencil:#8a5a3c; --accent:#6f7f4a; --accent-ink:#f7f8f2; --card:#ffffff; --rule:#d6d9d2;
+  --display:'Caveat',"Segoe Script","Bradley Hand",cursive;
+  --body:'Andada Pro',Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --paper:#1f2229; --paper-line:#2c3340; --ink:#e8e6df; --ink-soft:#a3a69e; --pencil:#d2a27f; --accent:#9fb06c; --accent-ink:#171a14; --card:#272b33; --rule:#3a3f4a; color-scheme:dark } }
+:root[data-theme="dark"]{ --paper:#1f2229; --paper-line:#2c3340; --ink:#e8e6df; --ink-soft:#a3a69e; --pencil:#d2a27f; --accent:#9fb06c; --accent-ink:#171a14; --card:#272b33; --rule:#3a3f4a; color-scheme:dark }
+
+html,body{height:100%}
+body{
+  margin:0; font-family:var(--body); color:var(--ink); font-size:16px; line-height:1.55;
+  background-color:var(--paper);
+  background-image:linear-gradient(var(--paper-line) 1px,transparent 1px),linear-gradient(90deg,var(--paper-line) 1px,transparent 1px);
+  background-size:20px 20px;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px)); padding-block:12px 40px;
+}
+*{box-sizing:border-box}
+.wrap{max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
+h1{font-family:var(--display); font-weight:700; font-size:2.6rem; line-height:1; margin:6px 0 0; letter-spacing:.01em}
+.sub{font-family:var(--display); font-size:1.25rem; color:var(--pencil); margin:0}
+h2{font-family:var(--display); font-size:1.7rem; font-weight:700; margin:0; line-height:1.1}
+p{margin:0}
+.note{font-family:var(--display); font-size:1.15rem; color:var(--pencil); line-height:1.25}
+.card{background:var(--card); border:1px solid var(--rule); border-radius:4px; padding:14px; box-shadow:2px 3px 0 rgba(0,0,0,.08)}
+button{font:inherit; color:inherit; cursor:pointer}
+.btn{background:var(--card); border:1.5px solid var(--ink); border-radius:3px; padding:7px 12px; font-size:.95rem; line-height:1.2}
+.btn:active{transform:translate(1px,1px)}
+.btn.on{background:var(--ink); color:var(--paper)}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600}
+.btn:focus-visible,select:focus-visible,.swatch:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.tabs{display:flex; gap:0; border-bottom:1.5px solid var(--ink)}
+.tab{background:none; border:none; padding:8px 10px 6px; font-family:var(--display); font-size:1.35rem; color:var(--ink-soft); border-bottom:3px solid transparent; margin-bottom:-1.5px}
+.tab.on{color:var(--ink); border-bottom-color:var(--ink)}
+.tab[disabled]{opacity:.55; cursor:default}
+label{font-size:.9rem; color:var(--ink-soft)}
+select{font:inherit; padding:6px 8px; border:1.5px solid var(--rule); border-radius:3px; background:var(--card); color:var(--ink)}
+.field{display:flex; flex-direction:column; gap:4px; min-width:0}
+
+/* grid canvas */
+.gridbox{position:relative; width:100%; overflow-x:auto}
+canvas{display:block; touch-action:none; max-width:100%}
+#grid{cursor:crosshair}
+
+/* yarn tray */
+.tray{display:flex; flex-wrap:wrap; gap:8px}
+.swatch{width:40px; height:40px; border-radius:50%; border:2px solid transparent; padding:0; position:relative; background:var(--c); box-shadow:inset 0 -5px 0 rgba(0,0,0,.18), inset 0 2px 0 rgba(255,255,255,.25)}
+.swatch.on{border-color:var(--ink); transform:scale(1.08)}
+.swatch span{position:absolute; inset:0; display:grid; place-items:center; font-family:var(--display); font-weight:700; font-size:1.1rem; color:rgba(0,0,0,.6)}
+.swatch.light span{color:rgba(0,0,0,.6)} .swatch.dark span{color:rgba(255,255,255,.75)}
+.yarnname{font-family:var(--display); font-size:1.2rem; color:var(--pencil); min-width:0}
+
+/* chart sheet */
+.sheet{background:var(--card); border:1px solid var(--rule); padding:14px; border-radius:4px}
+.key{display:grid; grid-template-columns:auto 1fr auto; gap:6px 10px; align-items:center; font-size:.95rem; font-variant-numeric:tabular-nums}
+.key i{display:block; width:18px; height:18px; border:1px solid rgba(0,0,0,.35); background:var(--c)}
+.stat{display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; font-size:.95rem; font-variant-numeric:tabular-nums}
+.stat b{font-weight:600}
+textarea{width:100%; min-height:120px; font:13px/1.4 ui-monospace,Menlo,Consolas,monospace; border:1px solid var(--rule); border-radius:3px; padding:8px; background:var(--paper); color:var(--ink)}
+
+/* secret */
+.locked{display:flex; flex-direction:column; gap:10px; align-items:flex-start}
+.progress{height:8px; background:var(--rule); border-radius:4px; overflow:hidden; width:100%}
+.progress i{display:block; height:100%; background:var(--accent); width:0%; transition:width .3s}
+.reveal{text-align:center}
+.reveal .msg{font-family:var(--display); font-size:1.7rem; line-height:1.2; margin-top:12px; color:var(--ink)}
+.toast{position:fixed; left:50%; bottom:calc(16px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:8px 14px; border-radius:3px; font-size:.9rem; opacity:0; pointer-events:none; transition:opacity .2s}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div>
+    <h1>Stitch Notebook</h1>
+    <p class="sub">colorwork charts, one square at a time</p>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab on" id="tab-design" data-view="design">Design</button>
+    <button class="tab" id="tab-chart" data-view="chart">Chart sheet</button>
+    <button class="tab" id="tab-secret" data-view="secret" disabled>Locked</button>
+  </div>
+
+  <!-- DESIGN -->
+  <section id="view-design" class="wrap" style="gap:12px">
+    <div class="card">
+      <div class="row" style="gap:12px">
+        <div class="field"><label for="selW">Stitches across</label>
+          <select id="selW"><option>24</option><option selected>32</option><option>40</option><option>48</option><option>60</option></select></div>
+        <div class="field"><label for="selH">Rows</label>
+          <select id="selH"><option>16</option><option selected>24</option><option>32</option><option>40</option></select></div>
+        <div class="field"><label for="selKind">Knit</label>
+          <select id="selKind"><option value="round">in the round</option><option value="flat">flat (back and forth)</option></select></div>
+        <button class="btn" id="btnNew" style="align-self:flex-end">New chart</button>
+      </div>
+      <p class="note" style="margin-top:8px">32 across repeats nicely on a hat or sock. 60 is a scarf panel.</p>
+    </div>
+
+    <div class="gridbox"><canvas id="grid"></canvas></div>
+
+    <div class="row" style="justify-content:space-between">
+      <div class="tray" id="tray"></div>
+    </div>
+    <p class="yarnname" id="yarnname">Oatmeal</p>
+
+    <div class="row">
+      <button class="btn on" id="toolPaint">Paint</button>
+      <button class="btn" id="toolFill">Fill area</button>
+      <button class="btn" id="toolMirror">Mirror</button>
+      <button class="btn" id="toolStitch">Show stitches</button>
+      <button class="btn" id="toolUndo">Undo</button>
+      <button class="btn" id="toolClear">Clear</button>
+    </div>
+    <p class="note">Tap or drag to color squares. Mirror paints both halves at once, the way fair isle motifs usually sit.</p>
+
+    <div class="card" style="display:flex; flex-direction:column; gap:10px">
+      <h2>Repeat preview</h2>
+      <div class="gridbox"><canvas id="repeat"></canvas></div>
+      <p class="note">Three repeats side by side, drawn as knit stitches.</p>
+    </div>
+
+    <div class="row" style="justify-content:space-between">
+      <p id="count" style="font-variant-numeric:tabular-nums; color:var(--ink-soft); font-size:.95rem"></p>
+      <button class="btn primary" id="btnFinish">Finish this chart</button>
+    </div>
+  </section>
+
+  <!-- CHART SHEET -->
+  <section id="view-chart" class="wrap" hidden style="gap:12px">
+    <div class="sheet" style="display:flex; flex-direction:column; gap:12px">
+      <div>
+        <h2 id="sheetTitle">Untitled motif</h2>
+        <p class="note" id="sheetMeta"></p>
+      </div>
+      <div class="gridbox"><canvas id="sheet"></canvas></div>
+      <p class="note" id="sheetHow"></p>
+      <div class="key" id="key"></div>
+      <div class="stat" id="stat"></div>
+    </div>
+    <div class="card" style="display:flex; flex-direction:column; gap:8px">
+      <h2>Row by row</h2>
+      <p class="note">Read right to left for right-side rows. Copy this into your notes or send it to yourself.</p>
+      <textarea id="rowText" readonly></textarea>
+      <div class="row"><button class="btn" id="btnCopy">Copy rows</button></div>
+    </div>
+  </section>
+
+  <!-- SECRET -->
+  <section id="view-secret" class="wrap" hidden style="gap:12px">
+    <div class="card locked" id="secretLocked">
+      <h2>One more chart in here</h2>
+      <p>Finish your own motif first. Then this page opens.</p>
+    </div>
+    <div class="card reveal" id="secretOpen" hidden style="display:flex; flex-direction:column; gap:10px; align-items:center">
+      <h2 id="secretTitle"></h2>
+      <div class="progress"><i id="secretBar"></i></div>
+      <div class="gridbox" style="width:100%"><canvas id="secretCanvas"></canvas></div>
+      <p class="note" id="secretRow"></p>
+      <p class="msg" id="secretMsg" hidden></p>
+      <div class="row" id="secretActions" hidden>
+        <button class="btn" id="btnSecretSheet">Open as chart sheet</button>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== Personalize here =====
+// Replace the message and, if you like, the motif. Chart rows run top to bottom; letters map to YARNS below.
+const SECRET = {
+  title: "A chart from Drew",
+  message: "I made this for you. Knit it into something warm.",
+  yarns: { ".":"Oatmeal", "#":"Rust", "o":"Moss" },
+  chart: [
+    "................................",
+    ".o.o.o.o.o.o.o.o.o.o.o.o.o.o.o.o",
+    "................................",
+    "......###......##......###......",
+    ".....#####....####....#####.....",
+    "....#######..######..#######....",
+    "....####################.####...",
+    "....#########.######.########...",
+    ".....######################.....",
+    "......####################......",
+    ".......##################.......",
+    "........################........",
+    ".........##############.........",
+    "..........############..........",
+    "...........##########...........",
+    "............########............",
+    ".............######.............",
+    "..............####..............",
+    "...............##...............",
+    "................................",
+    "o.o.o.o.o.o.o.o.o.o.o.o.o.o.o.o.",
+    "................................",
+  ]
+};
+// ============================
+
+const YARNS = [
+  {n:"Oatmeal", c:"#e6dccb", k:"A"}, {n:"Charcoal", c:"#3b3d42", k:"B"}, {n:"Rust", c:"#b35a3a", k:"C"},
+  {n:"Moss", c:"#6f7f4a", k:"D"}, {n:"Indigo", c:"#3a4a7a", k:"E"}, {n:"Blush", c:"#d9a3a0", k:"F"},
+  {n:"Mustard", c:"#d6a63c", k:"G"}, {n:"Cream", c:"#f6f1e4", k:"H"}
+];
+const yarnByName = Object.fromEntries(YARNS.map((y,i)=>[y.n,i]));
+
+let S = { w:32, h:24, kind:"round", cells:null, color:2, tool:"paint", mirror:false, stitches:false, finished:false, history:[] };
+
+function newChart(w,h,kind){ S.w=w; S.h=h; S.kind=kind; S.cells=new Uint8Array(w*h); S.history=[]; S.finished=false; save(); renderAll(); }
+function pushHistory(){ S.history.push(S.cells.slice()); if(S.history.length>40) S.history.shift(); }
+
+/* ---------- drawing helpers ---------- */
+function isDark(hex){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return (r*299+g*587+b*114)/1000<128; }
+function shade(hex,amt){ const n=parseInt(hex.slice(1),16); let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt; r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b)); return "#"+((r<<16)|(g<<8)|b).toString(16).padStart(6,"0"); }
+
+function drawStitch(ctx,x,y,s,hex){
+  ctx.fillStyle=shade(hex,-28); ctx.fillRect(x,y,s,s);
+  ctx.strokeStyle=hex; ctx.lineWidth=Math.max(1.5,s*0.34); ctx.lineCap="round"; ctx.lineJoin="round";
+  ctx.beginPath(); ctx.moveTo(x+s*0.18,y+s*0.12); ctx.lineTo(x+s*0.5,y+s*0.88); ctx.lineTo(x+s*0.82,y+s*0.12); ctx.stroke();
+}
+function drawSquare(ctx,x,y,s,hex){ ctx.fillStyle=hex; ctx.fillRect(x,y,s,s); ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,s-1,s-1); }
+
+function fitCell(cols, extra){ const avail=Math.min(560, document.querySelector('.wrap').clientWidth) - extra; return Math.max(6, Math.min(22, Math.floor(avail/cols))); }
+
+function paintGrid(canvas, cells, w, h, opts){
+  const o=Object.assign({stitches:false, numbers:false, kind:"round", cell:null, margin:0, yarns:null}, opts);
+  const cell=o.cell||fitCell(w, o.numbers?36:0);
+  const m=o.numbers?28:0; const dpr=window.devicePixelRatio||1;
+  const W=w*cell+m*2, H=h*cell+(o.numbers?22:0);
+  canvas.width=W*dpr; canvas.height=H*dpr; canvas.style.width=W+"px"; canvas.style.height=H+"px";
+  const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+  for(let r=0;r<h;r++) for(let c=0;c<w;c++){
+    const hex=(o.yarns||YARNS)[cells[r*w+c]].c; const x=m+c*cell,y=r*cell;
+    o.stitches?drawStitch(ctx,x,y,cell,hex):drawSquare(ctx,x,y,cell,hex);
+  }
+  if(!o.stitches){ // 5-stitch guide lines
+    ctx.strokeStyle="rgba(0,0,0,.5)"; ctx.lineWidth=1.5;
+    for(let c=5;c<w;c+=5){ ctx.beginPath(); ctx.moveTo(m+c*cell,0); ctx.lineTo(m+c*cell,h*cell); ctx.stroke(); }
+    for(let r=5;r<h;r+=5){ ctx.beginPath(); ctx.moveTo(m,h*cell-r*cell); ctx.lineTo(m+w*cell,h*cell-r*cell); ctx.stroke(); }
+  }
+  if(o.numbers){
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--ink").trim();
+    ctx.font=`${Math.max(9,Math.min(12,cell*0.7))}px ${getComputedStyle(document.body).fontFamily}`; ctx.textBaseline="middle";
+    for(let r=0;r<h;r++){
+      const rowNum=h-r; const y=r*cell+cell/2; const rightSide=(o.kind==="round")||rowNum%2===1;
+      ctx.textAlign=rightSide?"left":"right"; ctx.fillText(rowNum, rightSide?m+w*cell+5:m-5, y);
+    }
+    ctx.textAlign="center"; ctx.textBaseline="top";
+    for(let c=0;c<w;c++){ const n=w-c; if(n%5===0||n===1) ctx.fillText(n, m+c*cell+cell/2, h*cell+6); }
+  }
+}
+
+/* ---------- design view ---------- */
+const grid=document.getElementById("grid");
+function renderGrid(){ paintGrid(grid,S.cells,S.w,S.h,{stitches:S.stitches}); }
+function renderRepeat(){
+  const rc=document.getElementById("repeat"); const reps=3; const cell=fitCell(S.w*reps,0);
+  const tiled=new Uint8Array(S.w*reps*S.h);
+  for(let r=0;r<S.h;r++) for(let i=0;i<reps;i++) tiled.set(S.cells.subarray(r*S.w,(r+1)*S.w), r*S.w*reps+i*S.w);
+  paintGrid(rc,tiled,S.w*reps,S.h,{stitches:true,cell:cell});
+}
+function renderCount(){
+  const used=new Set(S.cells); const filled=[...S.cells].filter(v=>v!==0).length;
+  document.getElementById("count").textContent=`${S.w} sts × ${S.h} rows · ${used.size} yarn${used.size===1?"":"s"} · ${filled} colored`;
+}
+function renderAll(){ renderGrid(); renderRepeat(); renderCount(); }
+
+let painting=false;
+function cellAt(ev){
+  const rect=grid.getBoundingClientRect(); const p=ev.touches?ev.touches[0]:ev;
+  const cell=rect.width/S.w; const c=Math.floor((p.clientX-rect.left)/cell), r=Math.floor((p.clientY-rect.top)/cell);
+  if(c<0||c>=S.w||r<0||r>=S.h) return null; return {r,c};
+}
+function setCell(r,c,v){ S.cells[r*S.w+c]=v; if(S.mirror) S.cells[r*S.w+(S.w-1-c)]=v; }
+function floodFill(r,c,v){
+  const from=S.cells[r*S.w+c]; if(from===v) return; const st=[[r,c]];
+  while(st.length){ const [y,x]=st.pop(); if(y<0||y>=S.h||x<0||x>=S.w) continue; const i=y*S.w+x; if(S.cells[i]!==from) continue; S.cells[i]=v; st.push([y+1,x],[y-1,x],[y,x+1],[y,x-1]); }
+}
+function onDown(ev){ ev.preventDefault(); const p=cellAt(ev); if(!p) return; pushHistory(); painting=true;
+  if(S.tool==="fill"){ floodFill(p.r,p.c,S.color); painting=false; } else setCell(p.r,p.c,S.color); renderGrid(); }
+function onMove(ev){ if(!painting) return; ev.preventDefault(); const p=cellAt(ev); if(!p) return; setCell(p.r,p.c,S.color); renderGrid(); }
+function onUp(){ if(painting){ painting=false; renderRepeat(); renderCount(); save(); } else if(S.tool==="fill"){ renderRepeat(); renderCount(); save(); } }
+grid.addEventListener("pointerdown",onDown); grid.addEventListener("pointermove",onMove); window.addEventListener("pointerup",onUp); grid.addEventListener("pointercancel",onUp);
+
+/* yarn tray */
+const tray=document.getElementById("tray");
+YARNS.forEach((y,i)=>{ const b=document.createElement("button"); b.className="swatch "+(isDark(y.c)?"dark":"light"); b.style.setProperty("--c",y.c); b.title=y.n; b.setAttribute("aria-label",y.n);
+  b.innerHTML=`<span>${y.k}</span>`; b.addEventListener("click",()=>{ S.color=i; updateTray(); }); tray.appendChild(b); });
+function updateTray(){ [...tray.children].forEach((b,i)=>b.classList.toggle("on",i===S.color)); document.getElementById("yarnname").textContent=YARNS[S.color].n; }
+
+/* tools */
+const tb=id=>document.getElementById(id);
+function setTool(t){ S.tool=t; tb("toolPaint").classList.toggle("on",t==="paint"); tb("toolFill").classList.toggle("on",t==="fill"); }
+tb("toolPaint").onclick=()=>setTool("paint"); tb("toolFill").onclick=()=>setTool("fill");
+tb("toolMirror").onclick=()=>{ S.mirror=!S.mirror; tb("toolMirror").classList.toggle("on",S.mirror); };
+tb("toolStitch").onclick=()=>{ S.stitches=!S.stitches; tb("toolStitch").classList.toggle("on",S.stitches); tb("toolStitch").textContent=S.stitches?"Show squares":"Show stitches"; renderGrid(); };
+tb("toolUndo").onclick=()=>{ const h=S.history.pop(); if(h){ S.cells=h; renderAll(); save(); } };
+tb("toolClear").onclick=()=>{ pushHistory(); S.cells.fill(0); renderAll(); save(); };
+tb("btnNew").onclick=()=>{ newChart(+tb("selW").value,+tb("selH").value,tb("selKind").value); };
+
+/* ---------- chart sheet ---------- */
+let sheetSource="mine";
+function sheetData(){
+  if(sheetSource==="secret"){ const d=secretCells(); return {cells:d.cells,w:d.w,h:d.h,kind:"round",title:SECRET.title,yarns:YARNS}; }
+  return {cells:S.cells,w:S.w,h:S.h,kind:S.kind,title:"Your motif",yarns:YARNS};
+}
+function renderSheet(){
+  const d=sheetData();
+  tb("sheetTitle").textContent=d.title;
+  tb("sheetMeta").textContent=`${d.w} stitch repeat · ${d.h} rows · knit ${d.kind==="round"?"in the round":"flat"}`;
+  paintGrid(tb("sheet"),d.cells,d.w,d.h,{numbers:true,kind:d.kind});
+  tb("sheetHow").textContent=d.kind==="round" ? "Read every row right to left. Row 1 is the bottom row." : "Odd rows (right side) read right to left; even rows (wrong side) read left to right. Row 1 is the bottom row.";
+  const counts={}; d.cells.forEach(v=>counts[v]=(counts[v]||0)+1);
+  const key=tb("key"); key.innerHTML="";
+  Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).forEach(k=>{ const y=d.yarns[k]; key.insertAdjacentHTML("beforeend",`<i style="--c:${y.c}"></i><span>${y.k} · ${y.n}</span><span>${counts[k]} sts</span>`); });
+  const total=d.w*d.h; const long=Math.max(...rowsText(d).floats);
+  tb("stat").innerHTML=`<span>Stitches per repeat</span><b>${total}</b><span>Longest float</span><b>${long} sts${long>5?" (catch floats)":""}</b><span>Hat, 4 repeats</span><b>${d.w*4} sts cast on</b><span>Sock, 2 repeats</span><b>${d.w*2} sts</b>`;
+  tb("rowText").value=rowsText(d).text;
+}
+function rowsText(d){
+  const lines=[]; const floats=[0];
+  for(let r=d.h-1;r>=0;r--){
+    const rowNum=d.h-r; const rtl=(d.kind==="round")||rowNum%2===1;
+    const seq=[]; for(let i=0;i<d.w;i++){ const c=rtl?d.w-1-i:i; const v=d.cells[r*d.w+c]; if(seq.length&&seq[seq.length-1].v===v) seq[seq.length-1].n++; else seq.push({v,n:1}); }
+    seq.forEach(s=>floats.push(s.n));
+    lines.push(`Row ${rowNum}${rtl?"":" (WS)"}: `+seq.map(s=>`${s.n}${d.yarns[s.v].k}`).join(", "));
+  }
+  return {text:lines.join("\n"), floats};
+}
+tb("btnCopy").onclick=async()=>{ const ta=tb("rowText"); try{ await navigator.clipboard.writeText(ta.value); toast("Rows copied"); }catch(e){ ta.focus(); ta.select(); toast("Select and copy"); } };
+
+/* ---------- secret ---------- */
+function secretCells(){
+  const h=SECRET.chart.length, w=SECRET.chart[0].length; const cells=new Uint8Array(w*h);
+  for(let r=0;r<h;r++) for(let c=0;c<w;c++){ const ch=SECRET.chart[r][c]||"."; cells[r*w+c]=yarnByName[SECRET.yarns[ch]]??0; }
+  return {cells,w,h};
+}
+let revealTimer=null;
+function unlockSecret(){
+  tb("tab-secret").disabled=false; tb("tab-secret").textContent="From Drew";
+  tb("secretLocked").hidden=true; tb("secretOpen").hidden=false;
+}
+function playReveal(){
+  const d=secretCells(); const shown=new Uint8Array(d.w*d.h); let row=d.h; const cell=fitCell(d.w,0);
+  tb("secretTitle").textContent=SECRET.title; tb("secretMsg").hidden=true; tb("secretActions").hidden=true;
+  clearInterval(revealTimer);
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const step=()=>{ row--; if(row<0){ clearInterval(revealTimer); tb("secretRow").textContent="Bound off."; tb("secretMsg").textContent=SECRET.message; tb("secretMsg").hidden=false; tb("secretActions").hidden=false; return; }
+    shown.set(d.cells.subarray(row*d.w,(row+1)*d.w),row*d.w);
+    paintGrid(tb("secretCanvas"),shown,d.w,d.h,{stitches:true,cell:cell});
+    tb("secretBar").style.width=((d.h-row)/d.h*100)+"%"; tb("secretRow").textContent=`Row ${d.h-row} of ${d.h}`; };
+  if(reduced){ row=0; step(); } else revealTimer=setInterval(step,170);
+}
+tb("btnFinish").onclick=()=>{
+  const filled=[...S.cells].filter(v=>v!==0).length;
+  if(filled<S.w*2){ toast("Color in a bit more first"); return; }
+  S.finished=true; save(); unlockSecret(); show("secret"); playReveal();
+};
+tb("btnSecretSheet").onclick=()=>{ sheetSource="secret"; show("chart"); };
+tb("tab-chart").addEventListener("click",()=>{ sheetSource="mine"; });
+
+/* ---------- views ---------- */
+function show(v){
+  ["design","chart","secret"].forEach(k=>{ tb("view-"+k).hidden=(k!==v); tb("tab-"+k).classList.toggle("on",k===v); });
+  if(v==="chart") renderSheet(); if(v==="design") renderAll();
+}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{ if(!t.disabled) show(t.dataset.view); }));
+
+function toast(m){ const t=tb("toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
+
+/* ---------- persistence ---------- */
+function snapshot(){ return {w:S.w,h:S.h,kind:S.kind,cells:Array.from(S.cells),color:S.color,mirror:S.mirror,finished:S.finished}; }
+function save(){ try{ localStorage.setItem("stitch-notebook",JSON.stringify(snapshot())); }catch(e){} }
+function restore(d){ if(!d||!d.cells) return false; S.w=d.w;S.h=d.h;S.kind=d.kind||"round";S.cells=Uint8Array.from(d.cells);S.color=d.color??2;S.mirror=!!d.mirror;S.finished=!!d.finished; return true; }
+
+function start(hot){
+  let ok=false; try{ ok=restore(hot&&hot.cells?hot:JSON.parse(localStorage.getItem("stitch-notebook"))); }catch(e){}
+  if(!ok){ S.cells=new Uint8Array(S.w*S.h); seedSample(); }
+  tb("selW").value=S.w; tb("selH").value=S.h; tb("selKind").value=S.kind;
+  tb("toolMirror").classList.toggle("on",S.mirror); updateTray(); setTool("paint");
+  if(S.finished) unlockSecret();
+  renderAll();
+}
+function seedSample(){ // a little starter so the page isn't blank: a row of moss dots and one rust diamond, easy to clear
+  const w=S.w,h=S.h; for(let c=0;c<w;c+=2) S.cells[(h-2)*w+c]=3;
+  const cx=Math.floor(w/2), cy=Math.floor(h/2); for(let dy=-3;dy<=3;dy++) for(let dx=-3;dx<=3;dx++) if(Math.abs(dx)+Math.abs(dy)<=3) S.cells[(cy+dy)*w+cx+dx]=2;
+}
+window.claude?.hot?.snapshot?.(snapshot);
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+window.addEventListener("resize",()=>{ renderAll(); if(!tb("view-chart").hidden) renderSheet(); });
+</script>
+
+</body>
+</html>
