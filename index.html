@@ -24,6 +24,7 @@ body{
   padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px)); padding-block:12px 40px;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 .wrap{max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
 h1{font-family:var(--display); font-weight:700; font-size:2.6rem; line-height:1; margin:6px 0 0; letter-spacing:.01em}
 .sub{font-family:var(--display); font-size:1.25rem; color:var(--pencil); margin:0}
@@ -84,6 +85,7 @@ textarea{width:100%; min-height:120px; font:13px/1.4 ui-monospace,Menlo,Consolas
   <div>
     <h1>Stitch Notebook</h1>
     <p class="sub">colorwork charts, one square at a time</p>
+    <p class="note" id="startHere" style="margin-top:6px">Pick a yarn below the grid, then tap squares. When you like it, tap Finish.</p>
   </div>
 
   <div class="tabs" role="tablist">
@@ -97,14 +99,14 @@ textarea{width:100%; min-height:120px; font:13px/1.4 ui-monospace,Menlo,Consolas
     <div class="card">
       <div class="row" style="gap:12px">
         <div class="field"><label for="selW">Stitches across</label>
-          <select id="selW"><option>24</option><option selected>32</option><option>40</option><option>48</option><option>60</option></select></div>
-        <div class="field"><label for="selH">Rows</label>
+          <select id="selW"><option selected>24</option><option>32</option><option>40</option><option>48</option><option>60</option></select></div>
+        <div class="field"><label for="selH">Rows (rounds)</label>
           <select id="selH"><option>16</option><option selected>24</option><option>32</option><option>40</option></select></div>
         <div class="field"><label for="selKind">Knit</label>
           <select id="selKind"><option value="round">in the round</option><option value="flat">flat (back and forth)</option></select></div>
         <button class="btn" id="btnNew" style="align-self:flex-end">New chart</button>
       </div>
-      <p class="note" style="margin-top:8px">32 across repeats nicely on a hat or sock. 60 is a scarf panel.</p>
+      <p class="note" style="margin-top:8px">24 across fits a mitten or sock. 32 is a hat band. 60 is a scarf panel. Wide charts scroll sideways.</p>
     </div>
 
     <div class="gridbox"><canvas id="grid"></canvas></div>
@@ -152,7 +154,7 @@ textarea{width:100%; min-height:120px; font:13px/1.4 ui-monospace,Menlo,Consolas
       <h2>Row by row</h2>
       <p class="note">Read right to left for right-side rows. Copy this into your notes or send it to yourself.</p>
       <textarea id="rowText" readonly></textarea>
-      <div class="row"><button class="btn" id="btnCopy">Copy rows</button></div>
+      <div class="row"><button class="btn" id="btnSave">Save chart as image</button><button class="btn" id="btnCopy">Copy rows</button></div>
     </div>
   </section>
 
@@ -184,28 +186,28 @@ const SECRET = {
   message: "my special sweater",
   yarns: { ".":"Oatmeal", "#":"Rust", "o":"Moss" },
   chart: [
-    "................................",
-    ".o.o.o.o.o.o.o.o.o.o.o.o.o.o.o.o",
-    "................................",
-    "......###......##......###......",
-    ".....#####....####....#####.....",
-    "....#######..######..#######....",
-    "....####################.####...",
-    "....#########.######.########...",
-    ".....######################.....",
-    "......####################......",
-    ".......##################.......",
-    "........################........",
-    ".........##############.........",
-    "..........############..........",
-    "...........##########...........",
-    "............########............",
-    ".............######.............",
-    "..............####..............",
-    "...............##...............",
-    "................................",
-    "o.o.o.o.o.o.o.o.o.o.o.o.o.o.o.o.",
-    "................................",
+    "........................",
+    "o.o.o.o.o.o.o.o.o.o.o.o.",
+    "........................",
+    "........................",
+    ".....####.....####......",
+    "....######...######.....",
+    "...########.########....",
+    "...#################....",
+    "...#################....",
+    "...#################....",
+    "....###############.....",
+    ".....#############......",
+    "......###########.......",
+    ".......#########........",
+    "........#######.........",
+    ".........#####..........",
+    "..........###...........",
+    "...........#............",
+    "........................",
+    "........................",
+    ".o.o.o.o.o.o.o.o.o.o.o.o",
+    "........................",
   ]
 };
 // ============================
@@ -217,7 +219,7 @@ const YARNS = [
 ];
 const yarnByName = Object.fromEntries(YARNS.map((y,i)=>[y.n,i]));
 
-let S = { w:32, h:24, kind:"round", cells:null, color:2, tool:"paint", mirror:false, stitches:false, finished:false, history:[] };
+let S = { w:24, h:24, kind:"round", cells:null, color:2, tool:"paint", mirror:false, stitches:false, finished:false, history:[] };
 
 function newChart(w,h,kind){ S.w=w; S.h=h; S.kind=kind; S.cells=new Uint8Array(w*h); S.history=[]; S.finished=false; save(); renderAll(); }
 function pushHistory(){ S.history.push(S.cells.slice()); if(S.history.length>40) S.history.shift(); }
@@ -233,7 +235,7 @@ function drawStitch(ctx,x,y,s,hex){
 }
 function drawSquare(ctx,x,y,s,hex){ ctx.fillStyle=hex; ctx.fillRect(x,y,s,s); ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,s-1,s-1); }
 
-function fitCell(cols, extra){ const avail=Math.min(560, document.querySelector('.wrap').clientWidth) - extra; return Math.max(6, Math.min(22, Math.floor(avail/cols))); }
+function fitCell(cols, extra){ const avail=Math.min(560, document.querySelector('.wrap').clientWidth) - extra; return Math.max(extra===0&&cols<=60?13:6, Math.min(22, Math.floor(avail/cols))); }
 
 function paintGrid(canvas, cells, w, h, opts){
   const o=Object.assign({stitches:false, numbers:false, kind:"round", cell:null, margin:0, yarns:null}, opts);
@@ -336,12 +338,19 @@ function rowsText(d){
   for(let r=d.h-1;r>=0;r--){
     const rowNum=d.h-r; const rtl=(d.kind==="round")||rowNum%2===1;
     const seq=[]; for(let i=0;i<d.w;i++){ const c=rtl?d.w-1-i:i; const v=d.cells[r*d.w+c]; if(seq.length&&seq[seq.length-1].v===v) seq[seq.length-1].n++; else seq.push({v,n:1}); }
-    seq.forEach(s=>floats.push(s.n));
+    if(seq.length>1) seq.forEach(s=>floats.push(s.n));
     lines.push(`Row ${rowNum}${rtl?"":" (WS)"}: `+seq.map(s=>`${s.n}${d.yarns[s.v].k}`).join(", "));
   }
   return {text:lines.join("\n"), floats};
 }
 tb("btnCopy").onclick=async()=>{ const ta=tb("rowText"); try{ await navigator.clipboard.writeText(ta.value); toast("Rows copied"); }catch(e){ ta.focus(); ta.select(); toast("Select and copy"); } };
+
+tb("btnSave").onclick=()=>{
+  const d=sheetData(); const c=document.createElement("canvas");
+  paintGrid(c,d.cells,d.w,d.h,{numbers:true,kind:d.kind,cell:24});
+  try{ const a=document.createElement("a"); a.download=(d.title.replace(/[^a-z0-9]+/gi,"-").toLowerCase()||"chart")+".png"; a.href=c.toDataURL("image/png"); document.body.appendChild(a); a.click(); a.remove(); toast("Saved. If nothing downloaded, screenshot the chart."); }
+  catch(e){ toast("Screenshot the chart to save it"); }
+};
 
 /* ---------- secret ---------- */
 function secretCells(){
